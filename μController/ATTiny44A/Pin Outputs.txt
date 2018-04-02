@@ -1,0 +1,35 @@
+#define F_CPU 8000000UL		      /* set clock to 8mhz (make sure to turn off clockdiv8 fuse) */
+#include <avr/io.h>		      /* avr input-output library */
+#include <util/delay.h>		      /* delay library */
+
+
+int main(void)
+{
+	DDRA = 0xFF;		      /* set port A pins to outputs */
+	while (1)		      /* start the delay loop (infinite) */
+	{
+		PORTA ^= (1 << PA1);  /* toggle port A pin 1 (bitmask shift) */
+		_delay_ms(500);	      /* 0.5 sec delay */
+		PORTA |= (1 << PA0);  /* port A pin 0 set high (bitmask shift) */
+		_delay_ms(500);
+		PORTA &= ~(1 << PA0); /* port A pin 0 cleared (bitmask shift) */
+		_delay_ms(500);
+		PORTA ^= (1<< PA2);   /* toggle port A pin 2 (bitmask shift) */
+		_delay_ms(500);
+		PORTA ^= (1 << PA2);  /* " (")*/
+		_delay_ms(500);
+		PORTA &= ~(1 << PA1); /* set port A pin 1 low (bitmask shift) */
+		PORTA ^= (1 << PA4);  /* toggle port A pin 4 (bitmask shift) */
+		_delay_ms(500);
+		PORTA ^= (1 << PA4);  /* toggle port A pin 4 (bitnmask shift) */
+		_delay_ms(500);
+		PORTA ^= 0x17;	      /* toggle pins 0,1,2,4 (high) [hex number is 00010111 in binary] */
+		_delay_ms(250);
+		PORTA ^= 0x17;	      /* toggle pin 0,1,2,4 (low) [hex number goes from 00010111 to 00000000] */
+		_delay_ms(100);
+	}
+}
+
+the command:
+PORTA ^= (1 << PA< pinnumber>)     is the same as 
+PORTA ^= _BV(PA<pin number>)  	   _BV stands for bit value

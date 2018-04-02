@@ -1,0 +1,347 @@
+' 3x3 Keypad Test Code
+' *******NOTES TO SELF*****
+'* REMEMBER TO CHECK LET DIRSB and LET DIRSC permissions
+'  when adding new inputs or outputs!
+'* Key Values are as follows:
+' Keypad Key:	Key's Value In This Program:
+' 1-9			1-9
+' *			10
+' 0			11
+' #			12
+' A			13
+' B			16
+' C			19
+' D			22
+
+
+symbol key_pos = b1
+symbol key_value = b2
+symbol fail_text = b3
+' Set all of port B pins as outputs
+let dirsB=%11111111
+' Set all of port C pins as inputs
+let dirsC=%00000000
+goto init
+
+' **Reset to Position 0**
+
+init:
+' Turn LCD on with no cursor and no blink
+serout B.0,T2400,(22)
+pause 200
+' Turn the Backlight on
+serout B.0,T2400,(17)
+pause 10
+' "Form Feed" Clear display and put cursor at position 0 on line 0 (use 5ms delay after)
+serout B.0,T2400,(12)
+pause 10
+' Enter Text
+serout B.0,T2400,("Enter PIN:")
+' "Carriage Return" cursor is toggled to other line and position 0
+serout B.0,T2400,(13)
+' make sure that PIN starts with no correct entrys at initilization
+let key_pos=0
+goto scan
+
+' **Scan each Row, one at a time and check if any keys are pressed**
+
+scan:
+
+' Make row 1 high, scan for keys pressed
+let key_value=0
+let pinsB=%00010001
+gosub KeyTest
+
+' Make row 2 high, scan for keys pressed
+let key_value=3
+let pinsB=%00100001
+gosub KeyTest
+
+' Make row 3 high, scan for keys pressed
+let key_value=6
+let pinsB=%01000001
+gosub KeyTest
+
+' Make row 4 high, scan for keys pressed
+let key_value=9
+let pinsB=%10000001
+gosub KeyTest
+
+' Go to beginning of scanning if no keys are pressed
+goto scan
+
+' **Determine which Column Pressed**
+
+KeyTest:
+
+if pinC.6=1 then goto add1
+if pinC.7=1 then goto add2
+if pinC.0=1 then goto add3
+if pinC.1=1 then goto add13
+return
+
+
+' **Determine the Value Added to each Column Press**
+add13:
+' For fourth column, add 10 to the initial row's value
+do loop until pinC.1=0
+pause 20
+let key_value=key_value+10
+goto add3
+add3:
+' For third column, add 3 to the initial row's value
+do loop until pinC.0=0
+pause 20
+let key_value=key_value+1
+goto add2
+add2:
+' For second column, add 2 to the initial row's value
+do loop until pinC.7=0
+pause 20
+let key_value=key_value+1
+goto add1
+add1:
+' For first column, add 1 to the initial row's value
+do loop until pinC.6=0
+pause 20
+let key_value=key_value+1
+goto PinPosition
+
+' **Determine where in Pin Sequence this key hit is**
+
+PinPosition:
+
+let key_pos=key_pos+1
+
+if key_pos=1 then goto test1
+if key_pos=2 then goto test2
+if key_pos=3 then goto test3
+if key_pos=4 then goto test4
+
+' **Now test each Numerical Input against the Correct**
+' **PIN's position. If the key hit is incorrect, then**
+' **restart the position counter. If number input is**
+' **correct, keep looping until fourth pass. If the**
+' **correct four-number PIN is input, goto open procedure**
+
+' **For this exercise, the PIN will be:
+'     1--5--9--D(22)
+
+test4:
+' Test the value of the fourth PIN position
+if key_value=22 then
+	goto open
+else
+	goto resetpinpos
+endif
+
+test3:
+' Test the value of the third PIN position
+if key_value=9 then 
+	goto continue3
+else
+	goto resetpinpos
+endif
+
+test2:
+' Test the value of the second PIN position
+if key_value=5 then
+	goto continue2
+else
+	goto resetpinpos
+endif
+
+test1:
+' Test the value of the first PIN position
+if key_value=1 then
+	goto continue1
+else
+	goto resetpinpos
+endif
+
+' **Subprocesses**
+
+continue1:
+' set low otave, note length 1/16
+serout B.0,T2400,(215,210)
+' Play 1st note of Phrygian (C)
+serout B.0,T2400,(223)
+pause 40
+' add a "*" to the lower LCD line
+serout B.0,T2400,("*")
+pause 10
+goto scan
+
+continue2:
+' Play first three notes of Phrygian (C)
+serout B.0,T2400,(223,224,227)
+pause 40
+' add a "*" to the lower LCD line
+serout B.0,T2400,("*")
+pause 10
+goto scan
+
+continue3:
+' Play first four of Phrygian (C)
+serout B.0,T2400,(223,224,227,228)
+pause 40
+' add a "*" to the lower LCD line when keypad button is pressed
+serout B.0,T2400,("*")
+pause 10
+goto scan
+
+resetpinpos:
+inc b3
+' Play Failure Sound (Short then Long note)
+serout B.0,T2400,(210,230,212,224)
+
+' setup and deliver fail messages
+select case b3
+case 1
+	goto wrong1
+case 2
+	goto wrong2
+case 3
+	goto wrong3
+case 4
+	goto wrong4
+case 5
+	goto wrong5
+case 6
+	goto wrong6
+case 7
+	goto wrong7
+case 8
+	goto wrong8
+case 9
+	goto wrong9
+case 10
+	goto wrong10
+case 11
+	goto wrong11
+endselect
+
+goto init
+
+open:
+' play C Phrygean scale on fourth (correct) PIN number entry
+serout B.0,T2400,(223,224,227,228,230,231)
+pause 40
+' add a "*" to the lower LCD line when keypad button is pressed
+serout B.0,T2400,("*")
+' actuate the solenoid, allowing lid to be opened
+let pinsB=%00001011
+pause 4000
+' de-energize the solenoid
+let pinsB=%00000001
+goto init
+
+wrong1:
+' "Form Feed" Clear display and put cursor at position 0 on line 0 (use 5ms delay after)
+serout B.0,T2400,(12)
+pause 10
+' Display text on LCD
+serout B.0,T2400,("Wrong!")
+pause 3000
+goto init
+
+wrong2:
+' "Form Feed" Clear display and put cursor at position 0 on line 0 (use 5ms delay after)
+serout B.0,T2400,(12)
+pause 10
+' Display text on LCD
+serout B.0,T2400,("Wrong again!")
+pause 3000
+goto init
+
+wrong3:
+' "Form Feed" Clear display and put cursor at position 0 on line 0 (use 5ms delay after)
+serout B.0,T2400,(12)
+pause 10
+' Display text on LCD
+serout B.0,T2400,("Nope!")
+pause 3000
+goto init
+
+wrong4:
+' "Form Feed" Clear display and put cursor at position 0 on line 0 (use 5ms delay after)
+serout B.0,T2400,(12)
+pause 10
+' Display text on LCD
+serout B.0,T2400,("Not even close.")
+pause 3000
+goto init
+
+wrong5:
+' "Form Feed" Clear display and put cursor at position 0 on line 0 (use 5ms delay after)
+serout B.0,T2400,(12)
+pause 10
+' Display text on LCD; pause; enter more text on 2nd line
+serout B.0,T2400,("Denied again.")
+pause 1500
+serout B.0,T2400,(148,"Chump!")
+pause 2000
+goto init
+
+wrong6:
+' "Form Feed" Clear display and put cursor at position 0 on line 0 (use 5ms delay after)
+serout B.0,T2400,(12)
+pause 10
+' Display text on LCD
+serout B.0,T2400,("Oh, c'mon now...")
+pause 3000
+goto init
+
+wrong7:
+' "Form Feed" Clear display and put cursor at position 0 on line 0 (use 5ms delay after)
+serout B.0,T2400,(12)
+pause 10
+' Display text on LCD; enter more text on 2nd line
+serout B.0,T2400,("You got fat")
+serout B.0,T2400,(148,"fingers?")
+pause 3000
+goto init
+
+wrong8:
+' "Form Feed" Clear display and put cursor at position 0 on line 0 (use 5ms delay after)
+serout B.0,T2400,(12)
+pause 10
+' Display text on LCD
+serout B.0,T2400,("Maybe this isn't for you...")
+pause 3000
+goto init
+
+wrong9:
+' "Form Feed" Clear display and put cursor at position 0 on line 0 (use 5ms delay after)
+serout B.0,T2400,(12)
+pause 10
+' Display text on LCD; enter more text on 2nd line
+serout B.0,T2400,("This can't be")
+serout B.0,T2400,(148,"your box.")
+pause 3000
+goto init
+
+wrong10:
+' "Form Feed" Clear display and put cursor at position 0 on line 0 (use 5ms delay after)
+serout B.0,T2400,(12)
+pause 10
+' Display text on LCD
+serout B.0,T2400,("Are you sure you wanna do this?")
+pause 3000
+goto init
+
+wrong11:
+' "Form Feed" Clear display and put cursor at position 0 on line 0 (use 5ms delay after)
+serout B.0,T2400,(12)
+pause 10
+' Display text on LCD; pause; enter more text; emulate police siren sound via piezo
+serout B.0,T2400,("Ok then....")
+pause 1500
+serout B.0,T2400,(148,"Calling Police!")
+' Change the piezo sound output characteristics
+serout B.0,T2400,(211,218)
+pause 2000
+' Siren sound
+serout B.0,T2400,(223,216,223,218,223,216,223,218,223,216,223,218,223,216,223,218,223,216,223)
+let b3=0
+goto init
